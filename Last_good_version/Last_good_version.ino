@@ -6,7 +6,11 @@
 #define NUM_LEDS 140
 // Data pin that led data will be written out over
 #define DATA_PIN 2
-#define BRIGHTNESS 80
+#define BRIGHTNESS 110
+
+// Else config
+#define button1 9 // Button B1 is connected to Arduino pin 9
+#define button2 8 // Button B2 is connected to Arduino pin 8
 
 // Horloge
 #define DS1307_ADDRESS 0x68
@@ -35,43 +39,55 @@ int ledMatrix[16][9] = {
 
 // This is an array of leds.  One item for each led in your strip.
 CRGB leds[NUM_LEDS];
-int limit = 2;
+int limit = 2 ;
 
 // color2 : violet vert
-CRGB colorRGB = CRGB(238, 100, 238);
-CRGB colorRGB2 = CRGB(0, 180, 20);
+//CRGB colorRGB = CRGB(238, 100, 238);
+//CRGB colorRGB2 = CRGB(0, 180, 20);
+
+// color2 : violet vert
+CRGB colorRGB = CHSV(238, 255, 60);
+CRGB colorRGB2 = CHSV(120, 255, 60);
 
 
 // This function sets up the leds and tells the controller about them
 void setup() {
 
+    pinMode(button1, INPUT_PULLUP);
+    pinMode(button2, INPUT_PULLUP);
+
     // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
     Wire.begin();
-    setDateTime();
-    
-  
+    setDateTime();    
     //sanity check delay - allows reprogramming if accidently blowing power w/leds
     delay(2000);
+
+    //Wire.beginTransmission(DS1307_ADDRESS);
+    //Wire.write(zero);
+    //Wire.endTransmission();
+    //Wire.requestFrom(DS1307_ADDRESS, 7);   
+    //int minute = bcdToDec(Wire.read());
+    //int division = minute / 3.75;
+    //limit = division + 1;
+    
     FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
-    FastLED.setBrightness(BRIGHTNESS);
+    //FastLED.setBrightness(BRIGHTNESS);
     Serial.begin(9600);  
 }
 
 char Time[] = "  :  :  ";
 char Calendar[] = "  /  /20  ";
-char temperature[] = " 00.00";
-char temperature_msb;
 byte i, second, minute, hour, day, date, month, year, temperature_lsb;
 
 // start test date
 void setDateTime()
 {
   byte second = 00;   //0-59
-  byte minute = 32;   //0-59
-  byte hour = 17;     //0-23
-  byte weekDay = 4;  //1-7
+  byte minute = 35;   //0-59
+  byte hour = 13;     //0-23
+  byte weekDay = 6;  //1-7
   byte monthDay= 16; //1-31
-  byte month = 9;     //1-12
+  byte month = 10;     //1-12
   byte year = 21;     //0-99
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire.write(zero);
@@ -116,6 +132,26 @@ void clearLine(int index)
 
 void loop() {
 
+
+  // Buttons to modify Limit
+  if (!digitalRead(button1))
+  {
+    if (limit != 16)
+    {
+      limit = limit + 1;
+    }
+    Serial.println("a pressed");
+  }
+
+  if (!digitalRead(button2))
+  {
+    if (limit != 0)
+    {
+      limit = limit - 1;
+    }
+    Serial.println("b pressed");
+  }
+
   
   //Reset the register pointer
   Wire.beginTransmission(DS1307_ADDRESS);
@@ -138,18 +174,35 @@ void loop() {
   Serial.print(minute);
   Serial.print(" : ");
   Serial.print(second);
-  Serial.println(limit);
-  delay(990);
-   // Main loop for leds
+    
+  Serial.println("Limit : ");
+  Serial.println(limit); 
+  delay(200);
+  
+  // Main loop for leds
   for (int y = limit + 1; y <= 16; y++)
   {
     fillLine(y, colorRGB2);
   }
-  for (int z = 0; z < limit; z++)
+  FastLED.show();
+  for (int z = 1; z < limit; z++)
   {
     fillLine(z, colorRGB);
   }
+
+  // test case 
+  //fillLine(limit, colorRGB2);
+  
   clearLine(limit);
+  uint8_t colr = random()+millis()/100;
+  
+  // Led pour l'heure : all on
+  for (int x = 112; x <= 124; x++)
+  {
+    leds[x] = CHSV(0, 0, 255);
+  }
+  
+    
   FastLED.show();
   limit = newLimit;
      
