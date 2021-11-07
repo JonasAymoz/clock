@@ -16,8 +16,11 @@
 #define DS1307_ADDRESS 0x68
 byte zero = 0x00; // hack fix
 
+// Config 
+int setDate = false;
 
-// Config setup
+
+// LED mapping setup
 int ledMatrix[16][9] = {
     {1000,1000,1000, 47, 48, 79, 1000, 1000, 1000},
     {1000,1000,18 ,46 ,49 ,78  ,80 ,1000,1000},
@@ -39,33 +42,15 @@ int ledMatrix[16][9] = {
 
 // This is an array of leds.  One item for each led in your strip.
 CRGB leds[NUM_LEDS];
-int limit = 2 ;
 
-CHSVPalette16 test_pal ;
-
-
-// color2 : violet vert
-CHSV colorHSV1 = CHSV(238, 180, 60);
-CHSV colorHSV2 = CHSV(120, 180, 60);
+// var
+int limit = 1 ;
+uint8_t brightness = 60;
 int colorIndex= 0;
+int minutetest = 0;
+int hourTest = 0;
 
-CHSVPalette16 RainbowColorsHSV_p = (
-  CHSV(HUE_RED, 180, 180),  
-  CHSV(HUE_ORANGE, 180, 180),  
-  CHSV(HUE_YELLOW, 180, 180),  
-  CHSV(HUE_GREEN, 180, 180),  
-  CHSV(HUE_AQUA, 180, 180),  
-  CHSV(HUE_BLUE, 180, 180),  
-  CHSV(HUE_PURPLE, 180, 180),  
-  CHSV(HUE_PINK, 180, 180)
-);
-CHSVPalette16 currentPalette = RainbowColorsHSV_p;
-uint8_t paletteIndex = 1;
-
-uint8_t brightness = 100;
-
-
-// Custom 
+// Custom  colors
 CHSV purple196 (196,180,brightness);
 CHSV purple196_light (196,200,brightness);
 
@@ -148,92 +133,44 @@ CHSV CHSV_array[24][2]={
       {violet238, vert120},
 };
 
-    int minutetest = 0;
-    int hourTest = 0;
-// This function sets up the leds and tells the controller about them
-
-void setup() {
-    //sanity check delay - allows reprogramming if accidently blowing power w/leds
-    delay(1000);
-    FastLED.clear();
-
-    pinMode(button1, INPUT_PULLUP);
-    pinMode(button2, INPUT_PULLUP);
-   
-    // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
-    Wire.begin();
-    setDateTime();    
-        
-
-    //Wire.beginTransmission(DS1307_ADDRESS);
-    //Wire.write(zero);
-    //Wire.endTransmission();
-    //Wire.requestFrom(DS1307_ADDRESS, 7);   
-    //int minute = bcdToDec(Wire.read());
-    //int division = minute / 3.75;
-    //limit = division + 1;
-    
-    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
-    //FastLED.setBrightness(BRIGHTNESS);
-    Serial.begin(9600);  
-
-
-}
-
 char Time[] = "  :  :  ";
 char Calendar[] = "  /  /20  ";
 byte i, second, minute, hour, day, date, month, year, temperature_lsb;
 
-// start test date
-void setDateTime()
-{
-  byte second = 50;   //0-59
-  byte minute = 31;   //0-59
-  byte hour = 23;     //0-23
-  byte weekDay = 6;  //1-7
-  byte monthDay= 16; //1-31
-  byte month = 10;     //1-12
-  byte year = 21;     //0-99
-  Wire.beginTransmission(DS1307_ADDRESS);
-  Wire.write(zero);
-  Wire.write(decToBcd(second));
-  Wire.write(decToBcd(minute));
-  Wire.write(decToBcd(hour));
-  Wire.write(decToBcd(weekDay));
-  Wire.write(decToBcd(monthDay));
-  Wire.write(decToBcd(month));
-  Wire.write(decToBcd(year));
-  Wire.write(zero); //start
-  Wire.endTransmission();
+
+
+void setup() {
+    //sanity check delay - allows reprogramming if accidently blowing power w/leds
+    delay(1000);    
+    pinMode(button1, INPUT_PULLUP);
+    pinMode(button2, INPUT_PULLUP);   
+    // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
+    Wire.begin();
+    // init date   
+    if(setDate) setDateTime();    
+    // init leds
+    FastLED.clear();            
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);    
+    Serial.begin(9600);  
 }
 
-byte decToBcd(byte val)
-{
-  // Convert normal decimal numbers to binary coded decimal
-  return ((val / 10 * 16) + (val % 10));
-}
 
-byte bcdToDec(byte val)
-{
-  // Convert binary coded decimal to normal decimal numbers
-  return ((val / 16 * 10) + (val % 16));
-}
 
-void fillLine(int index, CRGB color, int posCouleur)
+
+void fillLine(int index, int posCouleur)
 { 
   for (int i = 0; i < 9; i++)
-  {
-    //leds[ledMatrix[index - 1][i]] = color;
-     CHSV colorHour =  CHSV_array[posCouleur][0];
-     colorHour.v = brightness;
+  {    
+    CHSV colorHour =  CHSV_array[posCouleur][0];
+    colorHour.v = brightness;
     leds[ledMatrix[index - 1][i]] = colorHour;
   }
 }
-void fillLine2(int index, CRGB color, int posCouleur)
+
+void fillLine2(int index, int posCouleur)
 {  
   for (int i = 0; i < 9; i++)
-  {
-    //leds[ledMatrix[index - 1][i]] = color;
+  {   
     CHSV colorHour =  CHSV_array[posCouleur][1];
     colorHour.v = brightness;
     leds[ledMatrix[index - 1][i]] = colorHour;
@@ -243,33 +180,28 @@ void fillLine2(int index, CRGB color, int posCouleur)
 void clearLine(int index)
 {
   for (int i = 0; i < 9; i++)
-  {
-    //leds[ledMatrix[index - 1][i]] = CHSV(0, 0, 100);
+  {    
     leds[ledMatrix[index - 1][i]] = CHSV(0, 0, 0);
   }
 }
 
+
+// ------------
+// MAIN LOOP
+// ------------
 void loop() {
-
-
-  // Buttons to modify Limit
-  if (!digitalRead(button1))
-  {
-    if (limit != 16)
-    {
-      limit = limit + 1;
-    }
+  delay(200);
+  if (!digitalRead(button1)){
     brightness = brightness + 20;
     if (brightness > 120)
     {
       brightness = 40;
     }
     Serial.println("a pressed");
-     Serial.println(brightness);
+    Serial.println(brightness);
   }
   
-  if (!digitalRead(button2))
-  {
+  if (!digitalRead(button2)){
     if (limit != 0)
     {
       limit = limit - 1;
@@ -277,8 +209,6 @@ void loop() {
     Serial.println("b pressed");
   }
 
-
- 
   //Reset the register pointer
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire.write(zero);
@@ -292,59 +222,54 @@ void loop() {
   int month = bcdToDec(Wire.read());
   int year = bcdToDec(Wire.read());
 
-  minutetest = minutetest + 2;
+  /*minutetest = minutetest + 2;
   if(minutetest == 60){
-    hourTest = (hourTest+1)%24;
+    hourTest = (hourTest+1)%24;    
+    colorIndex = (colorIndex + 1)%2 ;
+    FastLED.show();    
     minutetest = 0;
-    colorIndex = (colorIndex + 1)%9 ;
-  };
-  int division = minutetest / 3.75;
-  int newLimit = division + 1 ;
-
-  //int division = minute / 3.75;
-  //int newLimit = division + 1;
-  //Serial.print("time : ");
-  //Serial.print(hour);
-  //Serial.print(" : ");
-  //Serial.print(minute);
-  //Serial.print(" : ");
-  //Serial.print(second);
-    
-  //Serial.println("Limit : ");
-  //Serial.println(limit); 
-
-
-
+  };*/
   
- 
+  int division = minute / 3.75;
+  int newLimit = division + 1 ;
+  
+
+  /*int division = minute / 3.75;
+  int newLimit = division + 1;
+  Serial.print("time : ");
+  Serial.print(hour);
+  Serial.print(" : ");
+  Serial.print(minute);
+  Serial.print(" : ");
+  Serial.print(second);
+  Serial.println("Limit : ");
+  Serial.println(limit); */
+  
   // Main loop for leds
-   for (int z = 1; z < limit; z++)
+  // incoming hour
+  fill_solid( leds, NUM_LEDS, CRGB(0,0,0));
+  for (int z = 1; z < limit; z++)
   {
-    fillLine2(z, colorHSV2, colorIndex);
-  }
-  delay(200);
-  for (int y = limit + 1; y <= 16; y++)
+    fillLine2(z, colorIndex);
+  }  
+  //
+  for (int y = limit + 1; y < 17; y++)
   {
-    fillLine(y, colorHSV1, colorIndex);
+    fillLine(y, colorIndex);
   }
   clearLine(limit);
-
   // test case 
   //fillLine(limit, colorRGB2);
   //fill_solid( leds, NUM_LEDS, CRGB(50,0,200));
-  //fill_solid(leds, NUM_LEDS, colorHSV1);
-
+  //fill_solid(leds, NUM_LEDS, colorHSV1);  
   
-  
-  uint8_t colr = random()+millis()/100;
-  
-  // Led pour l'heure : all on  
+  // Hour led : init black
   for (int hourLeds = 112; hourLeds <= 124; hourLeds++){
         leds[hourLeds] = CHSV(0, 0, 0);
-  }
+  }  
   CHSV colorHour =  CHSV_array[colorIndex][0];
   colorHour.v = 180;
-  switch (hourTest%12) {
+  switch (hour%12) {
       case 0:
         leds[114] = colorHour;
         break;
@@ -385,9 +310,48 @@ void loop() {
         break;
     }
 
-  //colorIndex = (hourTest)%24;
-  delay(100);
+  colorIndex = (hourTest)%24;  
   FastLED.show();
-  limit = newLimit;
-     
+  limit = newLimit;  
+  Serial.println("limit");
+  Serial.println(limit);   
+}
+
+// ------
+// UTIL
+// ------
+
+// Init date
+void setDateTime()
+{
+  byte second = 50;   //0-59
+  byte minute = 33;   //0-59
+  byte hour = 17;     //0-23
+  byte weekDay = 7;  //1-7
+  byte monthDay= 7; //1-31
+  byte month = 11;     //1-12
+  byte year = 21;     //0-99
+  Wire.beginTransmission(DS1307_ADDRESS);
+  Wire.write(zero);
+  Wire.write(decToBcd(second));
+  Wire.write(decToBcd(minute));
+  Wire.write(decToBcd(hour));
+  Wire.write(decToBcd(weekDay));
+  Wire.write(decToBcd(monthDay));
+  Wire.write(decToBcd(month));
+  Wire.write(decToBcd(year));
+  Wire.write(zero); //start
+  Wire.endTransmission();
+}
+
+byte decToBcd(byte val)
+{
+  // Convert normal decimal numbers to binary coded decimal
+  return ((val / 10 * 16) + (val % 10));
+}
+
+byte bcdToDec(byte val)
+{
+  // Convert binary coded decimal to normal decimal numbers
+  return ((val / 16 * 10) + (val % 16));
 }
